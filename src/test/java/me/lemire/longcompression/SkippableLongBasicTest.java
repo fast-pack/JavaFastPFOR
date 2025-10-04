@@ -15,6 +15,7 @@ import me.lemire.integercompression.IntWrapper;
 import me.lemire.integercompression.TestUtils;
 import me.lemire.integercompression.VariableByte;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -165,6 +166,29 @@ public class SkippableLongBasicTest {
             // If we reach this point, no exception was thrown, which means the calculated output length was sufficient.
 
             assertTrue(maxOutputLength <= outPos.get() + 1); // +1 because SkippableLongComposition always adds one extra integer for the potential header
+        }
+    }
+
+    @Test
+    public void testUncompressOutputOffset_SkippableLongComposition() {
+        for (int offset : new int[] {0, 1, 6}) {
+            SkippableLongComposition codec = new SkippableLongComposition(new LongBinaryPacking(), new LongVariableByte());
+
+            long[] input = { 2, 3, 4, 5 };
+            long[] compressed = new long[codec.maxHeadlessCompressedLength(new IntWrapper(0), input.length)];
+            long[] uncompressed = new long[offset + input.length];
+
+            IntWrapper inputOffset = new IntWrapper(0);
+            IntWrapper compressedOffset = new IntWrapper(0);
+
+            codec.headlessCompress(input, inputOffset, input.length, compressed, compressedOffset);
+
+            int compressedLength = compressedOffset.get();
+            IntWrapper uncompressedOffset = new IntWrapper(offset);
+            compressedOffset = new IntWrapper(0);
+            codec.headlessUncompress(compressed, compressedOffset, compressedLength, uncompressed, uncompressedOffset, input.length);
+
+            assertArrayEquals(input, Arrays.copyOfRange(uncompressed, offset, offset + input.length));
         }
     }
 }

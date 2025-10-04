@@ -15,6 +15,7 @@ import me.lemire.integercompression.differential.SkippableIntegratedComposition;
 import me.lemire.integercompression.differential.SkippableIntegratedIntegerCODEC;
 import org.junit.Test;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -234,6 +235,54 @@ public class SkippableBasicTest {
                     // If we reach this point, no exception was thrown, which means the calculated output length was sufficient.
                 }
             }
+        }
+    }
+
+    @Test
+    public void testUncompressOutputOffset_SkippableComposition() {
+        for (int offset : new int[] {0, 1, 6}) {
+            SkippableComposition codec = new SkippableComposition(new BinaryPacking(), new VariableByte());
+
+            int[] input = { 2, 3, 4, 5 };
+            int[] compressed = new int[codec.maxHeadlessCompressedLength(new IntWrapper(0), input.length)];
+            int[] uncompressed = new int[offset + input.length];
+
+            IntWrapper inputOffset = new IntWrapper(0);
+            IntWrapper compressedOffset = new IntWrapper(0);
+
+            codec.headlessCompress(input, inputOffset, input.length, compressed, compressedOffset);
+
+            int compressedLength = compressedOffset.get();
+            IntWrapper uncompressedOffset = new IntWrapper(offset);
+            compressedOffset = new IntWrapper(0);
+            codec.headlessUncompress(compressed, compressedOffset, compressedLength, uncompressed, uncompressedOffset, input.length);
+
+            assertArrayEquals(input, Arrays.copyOfRange(uncompressed, offset, offset + input.length));
+        }
+    }
+
+    @Test
+    public void testUncompressOutputOffset_SkippableIntegratedComposition() {
+        for (int offset : new int[] {0, 1, 6}) {
+            SkippableIntegratedComposition codec = new SkippableIntegratedComposition(new IntegratedBinaryPacking(), new IntegratedVariableByte());
+
+            int[] input = { 2, 3, 4, 5 };
+            int[] compressed = new int[codec.maxHeadlessCompressedLength(new IntWrapper(0), input.length)];
+            int[] uncompressed = new int[offset + input.length];
+
+            IntWrapper inputOffset = new IntWrapper(0);
+            IntWrapper compressedOffset = new IntWrapper(0);
+            IntWrapper initValue = new IntWrapper(0);
+
+            codec.headlessCompress(input, inputOffset, input.length, compressed, compressedOffset, initValue);
+
+            int compressedLength = compressedOffset.get();
+            IntWrapper uncompressedOffset = new IntWrapper(offset);
+            compressedOffset = new IntWrapper(0);
+            initValue = new IntWrapper(0);
+            codec.headlessUncompress(compressed, compressedOffset, compressedLength, uncompressed, uncompressedOffset, input.length, initValue);
+
+            assertArrayEquals(input, Arrays.copyOfRange(uncompressed, offset, offset + input.length));
         }
     }
 }

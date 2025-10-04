@@ -53,12 +53,14 @@ public class SkippableLongComposition implements SkippableLongCODEC {
     public void headlessUncompress(long[] in, IntWrapper inpos, int inlength, long[] out,
             IntWrapper outpos, int num) {
         int init = inpos.get();
+        int outposInit = outpos.get();
+
         F1.headlessUncompress(in, inpos, inlength, out, outpos, num);
         if (inpos.get() == init) {
               inpos.increment();
         }
         inlength -= inpos.get() - init;
-        num -= outpos.get();
+        num -= outpos.get() - outposInit;
         F2.headlessUncompress(in, inpos, inlength, out, outpos, num);
     }
 

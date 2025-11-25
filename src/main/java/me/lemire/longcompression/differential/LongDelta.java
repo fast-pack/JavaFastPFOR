@@ -107,7 +107,7 @@ public final class LongDelta {
                         }
                 }
 
-                for (; i != data.length; ++i) {
+                for (; i < data.length; ++i) {
                         data[i] += data[i - 1];
                 }
         }

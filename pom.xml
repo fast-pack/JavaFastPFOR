@@ -2,7 +2,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>me.lemire.integercompression</groupId>
   <artifactId>JavaFastPFOR</artifactId>
-  <version>0.3.10-SNAPSHOT</version>
+  <version>0.3.10</version>
   <packaging>jar</packaging>
   <properties>
     <maven.compiler.source>21</maven.compiler.source>
@@ -23,7 +23,7 @@
     <connection>scm:git:https://github.com/fast-pack/JavaFastPFOR.git</connection>
     <url>scm:git:https://github.com/fast-pack/JavaFastPFOR.git</url>
     <developerConnection>scm:git:https://github.com/fast-pack/JavaFastPFOR.git</developerConnection>
-    <tag>HEAD</tag>
+    <tag>JavaFastPFOR-0.3.10</tag>
   </scm>
 
   <distributionManagement>

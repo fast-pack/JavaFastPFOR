@@ -6,5 +6,7 @@ module me.lemire.integercompression {
   // requires jdk.incubator.vector;
   exports me.lemire.integercompression;
   exports me.lemire.longcompression;
+  exports me.lemire.longcompression.differential;
+  exports me.lemire.integercompression.differential;
   // exports me.lemire.integercompression.vector;
 }

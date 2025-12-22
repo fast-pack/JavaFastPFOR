@@ -104,53 +104,62 @@ non-vectorized implementation. For an example usage, see
 examples/vector/Example.java. The feature requires JDK 19+ and is currently for 
 advanced users.
 
-JavaFastPFOR as a dependency (JitPack)
+JavaFastPFOR as a dependency
 ------------------------
+
+JavaFastPFOR is available both on Maven Central and JitPack, so you can easily 
+include it in your project using either source.
 
 We have a demo project using JavaFastPFOR as a dependency (both Maven and Gradle). See...
 
 https://github.com/fast-pack/JavaFastPFORDemo
 
-1. **Maven**
+### Maven Central
 
-Using this code in your own project is easy with maven, just add
-the following code in your pom.xml file:
+You can add JavaFastPFOR directly from Maven Central — no extra repository configuration needed:
 
-```xml
-	<dependency>
-	    <groupId>com.github.fast-pack</groupId>
-	    <artifactId>JavaFastPFor</artifactId>
-	    <version>JavaFastPFOR-0.3.2</version>
-	</dependency>
-```
-
-as well as jitpack as a repository...
+**Maven**
 
 ```xml
-	<repositories>
-		<repository>
-		    <id>jitpack.io</id>
-		    <url>https://jitpack.io</url>
-		</repository>
-	</repositories>
+<dependency>
+    <groupId>me.lemire.integercompression</groupId>
+    <artifactId>JavaFastPFOR</artifactId>
+    <version>0.3.8</version>
+</dependency>
 ```
 
-Naturally, you should replace "version" by the version
-you desire.
-
-
-2. **Gradle (groovy)**
-
-
-Then all you need is to edit your `build.gradle` file like so:
-
+**Gradle (Groovy)**
 
 ```groovy
-plugins {
-    id 'java'
+dependencies {
+    implementation 'me.lemire.integercompression:JavaFastPFOR:0.3.8'
 }
+```
 
+### JitPack
 
+If you prefer or need to use JitPack, you can include the dependency like this:
+
+**Maven**
+
+```xml
+<repositories>
+    <repository>
+        <id>jitpack.io</id>
+        <url>https://jitpack.io</url>
+    </repository>
+</repositories>
+
+<dependency>
+    <groupId>com.github.fast-pack</groupId>
+    <artifactId>JavaFastPFOR</artifactId>
+    <version>JavaFastPFOR-0.3.8</version>
+</dependency>
+```
+
+**Gradle (groovy)**
+
+```groovy
 repositories {
     mavenCentral()
     maven {
@@ -159,10 +168,9 @@ repositories {
 }
 
 dependencies {
-    implementation 'com.github.fast-pack:JavaFastPFor:JavaFastPFOR-0.3.2'
+    implementation 'com.github.fast-pack:JavaFastPFOR:JavaFastPFOR-0.3.8'
 }
 ```
-
 
 Naturally, you should replace "version" by the version
 you desire.

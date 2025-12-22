@@ -244,6 +244,21 @@ API Documentation
 
 http://www.javadoc.io/doc/me.lemire.integercompression/JavaFastPFOR/
 
+
+Citing this work
+-----------------
+
+If you use JavaFastPFOR in your work, please consider citing the project. A recommended BibTeX entry is:
+
+```bibtex
+@misc{lemire2025_javafastpfor,
+  author = {Daniel Lemire},
+  title = {{JavaFastPFOR: A simple integer compression library in Java}},
+  year = {2025},
+  howpublished = {\url{https://github.com/fast-pack/JavaFastPFOR}},
+}
+```
+
 Want to read more?
 ------------------
 

@@ -54,6 +54,8 @@ import me.lemire.integercompression.vector.VectorBitPackerKernels.LaneWidth;
  */
 public class VectorFastPFOR implements IntegerCODEC, SkippableIntegerCODEC {
   private final static int OVERHEAD_OF_EACH_EXCEPT = 8;
+  private static final int OVERHEAD_OF_EACH_PAGE_IN_INTS = 36;
+  private static final int OVERHEAD_OF_EACH_BLOCK_IN_INTS = 1;
   public final static int DEFAULT_PAGE_SIZE = 64 << 10;
 
   public final static int BLOCK_SIZE = 256;
@@ -257,7 +259,11 @@ public class VectorFastPFOR implements IntegerCODEC, SkippableIntegerCODEC {
 
   @Override
   public int maxHeadlessCompressedLength(IntWrapper compressedPositions, int inlength) {
-    throw new UnsupportedOperationException("Calculating the max compressed length is not supported yet.");
+    inlength = inlength - inlength % BLOCK_SIZE;
+    int pageCount = (inlength + pageSize - 1) / pageSize;
+    int blockCount = inlength / BLOCK_SIZE;
+    int blockSizeInInts = OVERHEAD_OF_EACH_BLOCK_IN_INTS + BLOCK_SIZE;
+    return OVERHEAD_OF_EACH_PAGE_IN_INTS * pageCount + blockSizeInInts * blockCount + 24;
   }
 
   private void loadMetaData(int[] in, int inexcept, int bytesize) {

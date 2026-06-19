@@ -17,6 +17,7 @@ import me.lemire.integercompression.differential.IntegratedIntegerCODEC;
 import me.lemire.integercompression.differential.IntegratedVariableByte;
 import me.lemire.integercompression.differential.XorBinaryPacking;
 import me.lemire.integercompression.synth.ClusteredDataGenerator;
+import me.lemire.integercompression.vector.VectorFastPFOR;
 
 import org.junit.Test;
 
@@ -43,6 +44,7 @@ public class BasicTest {
             new Composition(new OptPFDS16(), new VariableByte()),
             new Composition(new FastPFOR128(), new VariableByte()),
             new Composition(new FastPFOR(), new VariableByte()),
+            new Composition(new VectorFastPFOR(), new VariableByte()),
             new Simple9(),
             new Simple16(),
             new GroupSimple9(),

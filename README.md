@@ -101,8 +101,9 @@ Most others do not.
 The Java Team at Intel (R) introduced the vector implementation for FastPFOR
 based on the Java Vector API that showed significant gains over the
 non-vectorized implementation. For an example usage, see
-examples/vector/Example.java. The feature requires JDK 19+ and is currently for 
-advanced users.
+examples/vector/Example.java. On aarch64 (e.g. Graviton3), use JDK 24 or
+later: earlier releases lack the Vector API SVE intrinsics and run a fallback
+that is slower than the scalar codec.
 
 JavaFastPFOR as a dependency
 ------------------------

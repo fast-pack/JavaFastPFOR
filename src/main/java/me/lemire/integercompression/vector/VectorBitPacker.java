@@ -15,7 +15,7 @@ import jdk.incubator.vector.*;
  * classes.
  *
  */
-public class VectorBitPacker {
+public class VectorBitPacker implements VectorBitPackerKernels {
   private static final VectorSpecies<Integer> SPECIES_512 =
       IntVector.SPECIES_512;
   private static final VectorSpecies<Integer> SPECIES_256 =
@@ -101,8 +101,9 @@ public class VectorBitPacker {
    * @param b
    *                number of bits to use per integer
    */
-  public static void fastpack(final int[] in, int inpos, final int[] out,
-                              int outpos, int b) {
+  @Override
+  public void fastpack(final int[] in, int inpos, final int[] out,
+                       int outpos, int b) {
     switch (b) {
     case 0:
       break;
@@ -205,7 +206,8 @@ public class VectorBitPacker {
     }
   }
 
-  static void fastpackNoMask(final int[] in, int inpos, final int[] out,
+  @Override
+  public void fastpackNoMask(final int[] in, int inpos, final int[] out,
                              int outpos, int b) {
     switch (b) {
     case 0:
@@ -323,8 +325,9 @@ public class VectorBitPacker {
    * @param b
    *                number of bits to use per integer
    */
-  public static void fastunpack(final int[] in, int inpos, final int[] out,
-                                int outpos, int b) {
+  @Override
+  public void fastunpack(final int[] in, int inpos, final int[] out,
+                         int outpos, int b) {
     switch (b) {
     case 0:
       Arrays.fill(out, outpos, outpos + 256, 0);
@@ -426,82 +429,6 @@ public class VectorBitPacker {
       System.arraycopy(in, inpos, out, outpos, BLOCK_SIZE);
       break;
     }
-  }
-
-  /**
-   * Packs an arbitrary count of integers, OR-accumulating into {@code out}.
-   * Zeroes its target words first so a reused output buffer carries no stale
-   * bits.
-   */
-  public static int slowpack(final int[] in, int inpos, int inlen,
-                             final int[] out, int outpos, int b) {
-    if (inlen == 0)
-      return outpos;
-    if (b == 32) {
-      System.arraycopy(in, inpos, out, outpos, inlen);
-      return outpos + inlen;
-    }
-    int mask = (1 << b) - 1;
-    Arrays.fill(out, outpos, outpos + (inlen * b + 31) / 32, 0);
-    int c = 0;
-    int l = 0;
-    int r = 0;
-    int val = 0;
-    for (int i = 0; i < inlen; i++) {
-      val = in[inpos + i] & mask;
-      out[outpos] |= val << (c + r);
-      c += b;
-      l = (32 - r) % b;
-      if (c + r >= 32) {
-        if (i < inlen - 1 || l != 0)
-          outpos++;
-        r = l == 0 ? 0 : b - l;
-        if (l != 0)
-          out[outpos] = val >> (b - r);
-        c = 0;
-      }
-    }
-    return outpos;
-  }
-
-  public static int slowunpack(final int[] in, int inpos, final int[] out,
-                               int outpos, int outlen, int b) {
-    if (outlen == 0) {
-      return inpos;
-    }
-    if (b == 32) {
-      System.arraycopy(in, inpos, out, outpos, outlen);
-      return inpos + outlen;
-    }
-    int mask = (1 << b) - 1;
-    int limit = outpos + outlen;
-    int r = 0;
-    int val = 0;
-    int i = 0;
-    for (; outpos < limit; i++) {
-      if (r > 0)
-        out[outpos++] =
-            (val >>> (32 - (b - r))) | ((in[inpos + i] << (b - r)) & mask);
-      val = in[inpos + i];
-      int j = 0;
-      int l = 32 - r;
-      int ll = l % b == 0 ? l : l - b;
-      while (j < ll && outpos < limit) {
-        out[outpos++] = (val >> (j + r)) & mask;
-        j += b;
-      }
-      r = l % b == 0 ? 0 : b - (l % b);
-    }
-    return inpos + i;
-  }
-
-  public static int numCompressedInts(int n, int b) {
-    int width = b % 2 == 0 ? VLEN_512 : VLEN_256;
-    if (n <= width)
-      return n;
-    int intsPerVec = (32 / b) * width;
-    int q = (n + intsPerVec - 1) / intsPerVec;
-    return q * width;
   }
 
   private static void fastpack1(final int[] in, int inpos, final int[] out,

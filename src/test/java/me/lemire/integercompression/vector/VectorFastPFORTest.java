@@ -53,10 +53,13 @@ public class VectorFastPFORTest {
   @Test
   public void checkDecodableRejectsWiderStream() {
     assertThrows(IllegalStateException.class,
-        () -> VectorFastPFOR.checkDecodable(LaneWidth.BITS_512, LaneWidth.BITS_128));
+        () -> VectorFastPFOR.checkDecodable(LaneWidth.BITS_256, LaneWidth.BITS_128));
+    assertThrows(IllegalStateException.class,
+        () -> VectorFastPFOR.checkDecodable(LaneWidth.BITS_512, LaneWidth.BITS_256));
     // equal or narrower stream decodes natively
     VectorFastPFOR.checkDecodable(LaneWidth.BITS_128, LaneWidth.BITS_128);
     VectorFastPFOR.checkDecodable(LaneWidth.BITS_128, LaneWidth.BITS_512);
+    VectorFastPFOR.checkDecodable(LaneWidth.BITS_256, LaneWidth.BITS_512);
   }
 
   /** 128-bit lanes are the universal floor, so such a stream decodes on any host. */

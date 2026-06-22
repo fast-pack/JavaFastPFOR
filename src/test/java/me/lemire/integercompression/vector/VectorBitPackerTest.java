@@ -15,11 +15,11 @@ import org.junit.Test;
 /**
  * Tests for the width-specific bit-packing kernels.
  *
- * VectorBitPacker (256/512-bit lanes) and VectorBitPacker128 (128-bit lanes)
- * use different lane strides, so their packed layouts differ and are not
- * wire-compatible. Both must satisfy the same roundtrip contract: packing a
- * 256-integer block whose values fit in b bits and unpacking it recovers the
- * input for every width b.
+ * VectorBitPacker (256/512-bit lanes), VectorBitPacker256 (256-bit lanes) and
+ * VectorBitPacker128 (128-bit lanes) use different lane strides, so their packed
+ * layouts differ and are not wire-compatible. Each must satisfy the same
+ * roundtrip contract: packing a 256-integer block whose values fit in b bits and
+ * unpacking it recovers the input for every width b.
  */
 public class VectorBitPackerTest {
 
@@ -59,6 +59,11 @@ public class VectorBitPackerTest {
   @Test
   public void vectorBitPacker128RoundTrip() {
     roundTrip(new VectorBitPacker128());
+  }
+
+  @Test
+  public void vectorBitPacker256RoundTrip() {
+    roundTrip(new VectorBitPacker256());
   }
 
   @Test

@@ -10,9 +10,9 @@ import jdk.incubator.vector.IntVector;
 
 /**
  * Width-specific vectorized bit-packing kernels for a 256-integer block.
- * Implemented by VectorBitPacker (512-bit lanes) and VectorBitPacker128
- * (128-bit lanes). The packed layout differs per width, so a stream is decoded
- * by the same kernel that packed it.
+ * Implemented by VectorBitPacker (512-bit lanes), VectorBitPacker256 (256-bit
+ * lanes) and VectorBitPacker128 (128-bit lanes). The packed layout differs per
+ * width, so a stream is decoded by the same kernel that packed it.
  */
 public interface VectorBitPackerKernels {
 
@@ -29,6 +29,7 @@ public interface VectorBitPackerKernels {
    */
   enum LaneWidth {
     BITS_128(0, 128, new VectorBitPacker128()),
+    BITS_256(1, 256, new VectorBitPacker256()),
     BITS_512(2, 512, new VectorBitPacker());
 
     /** Compact wire tag stored in the stream (fits in 2 bits). */

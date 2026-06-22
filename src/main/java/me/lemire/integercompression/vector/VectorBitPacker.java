@@ -428,6 +428,11 @@ public class VectorBitPacker {
     }
   }
 
+  /**
+   * Packs an arbitrary count of integers, OR-accumulating into {@code out}.
+   * Zeroes its target words first so a reused output buffer carries no stale
+   * bits.
+   */
   public static int slowpack(final int[] in, int inpos, int inlen,
                              final int[] out, int outpos, int b) {
     if (inlen == 0)
@@ -437,6 +442,7 @@ public class VectorBitPacker {
       return outpos + inlen;
     }
     int mask = (1 << b) - 1;
+    Arrays.fill(out, outpos, outpos + (inlen * b + 31) / 32, 0);
     int c = 0;
     int l = 0;
     int r = 0;

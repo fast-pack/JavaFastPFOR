@@ -12,6 +12,7 @@ import java.util.Arrays;
 import me.lemire.integercompression.IntegerCODEC;
 import me.lemire.integercompression.SkippableIntegerCODEC;
 import me.lemire.integercompression.IntWrapper;
+import me.lemire.integercompression.vector.VectorBitPackerKernels.LaneWidth;
 
 /**
  * This is a patching scheme designed for speed.
@@ -41,16 +42,33 @@ import me.lemire.integercompression.IntWrapper;
  * For multi-threaded applications, each thread should use its own FastPFOR
  * object.
  *
+ * Blocks are packed in a vectorized layout that differs by hardware vector
+ * lane width, so each stream is tagged with the width it was packed for and is
+ * decoded by the matching kernel. Decoding requires a machine whose preferred
+ * vector width is at least the stream's; a narrower machine fails fast rather
+ * than emulating. The default constructor packs at this machine's preferred
+ * width; the {@code (int, LaneWidth)} constructor pins a width so a
+ * heterogeneous cluster can decode on its narrowest node.
+ *
  * @author Daniel Lemire
  */
 public class VectorFastPFOR implements IntegerCODEC, SkippableIntegerCODEC {
   private final static int OVERHEAD_OF_EACH_EXCEPT = 8;
+  private static final int OVERHEAD_OF_EACH_PAGE_IN_INTS = 36;
+  private static final int OVERHEAD_OF_EACH_BLOCK_IN_INTS = 1;
   public final static int DEFAULT_PAGE_SIZE = 64 << 10;
 
   public final static int BLOCK_SIZE = 256;
   private final static int INTS_PER_BLOCK = BLOCK_SIZE >>> 5;
 
+  // The page header word holds the metadata offset in its low 30 bits and the
+  // packing lane-width tag in its top 2 bits.
+  private final static int WIDTH_SHIFT = 30;
+  private final static int WHEREMETA_MASK = (1 << WIDTH_SHIFT) - 1;
+
   private final int pageSize;
+  private final LaneWidth encodeWidth;
+  private final VectorBitPackerKernels encoder;
   private final int[][] dataTobePacked = new int[33][];
   private int[] exceptData = null;
 
@@ -64,9 +82,18 @@ public class VectorFastPFOR implements IntegerCODEC, SkippableIntegerCODEC {
    * @param pagesize
    *                the desired page size (recommended value is
    * FastPFOR.DEFAULT_PAGE_SIZE)
+   * @param encodeWidth
+   *                the vector lane width to pack with. Use
+   * {@link LaneWidth#PREFERRED} for this machine's fastest layout, or pin a
+   * cluster to its narrowest node's width so every node can decode the stream.
    */
-  private VectorFastPFOR(int pagesize) {
+  public VectorFastPFOR(int pagesize, LaneWidth encodeWidth) {
+    if (pagesize >= (1 << WIDTH_SHIFT))
+      throw new IllegalArgumentException("page size must be smaller than "
+                                         + (1 << WIDTH_SHIFT));
     pageSize = pagesize;
+    this.encodeWidth = encodeWidth;
+    this.encoder = encodeWidth.kernel;
     // Initiate arrrays.
     bem = new byte[3 * pageSize / BLOCK_SIZE + pagesize];
     for (int k = 1; k < dataTobePacked.length; ++k)
@@ -75,9 +102,10 @@ public class VectorFastPFOR implements IntegerCODEC, SkippableIntegerCODEC {
   }
 
   /**
-   * Construct the fastPFOR CODEC with default parameters.
+   * Construct the fastPFOR CODEC with default parameters, packing with this
+   * machine's preferred vector lane width.
    */
-  public VectorFastPFOR() { this(DEFAULT_PAGE_SIZE); }
+  public VectorFastPFOR() { this(DEFAULT_PAGE_SIZE, LaneWidth.PREFERRED); }
 
   /**
    * Compress data in blocks of BLOCK_SIZE integers (if fewer than BLOCK_SIZE
@@ -165,11 +193,11 @@ public class VectorFastPFOR implements IntegerCODEC, SkippableIntegerCODEC {
       } else {
         bindex += 2;
       }
-      VectorBitPacker.fastpack(in, tmpinpos, out, tmpoutpos, tmpbestb);
+      encoder.fastpack(in, tmpinpos, out, tmpoutpos, tmpbestb);
       tmpoutpos += INTS_PER_BLOCK * tmpbestb;
     }
     inpos.set(tmpinpos);
-    out[headerpos] = tmpoutpos - headerpos;
+    out[headerpos] = (tmpoutpos - headerpos) | (encodeWidth.code << WIDTH_SHIFT);
 
     int bytesize = bindex;
     out[tmpoutpos++] = bytesize;
@@ -196,13 +224,13 @@ public class VectorFastPFOR implements IntegerCODEC, SkippableIntegerCODEC {
         int j = 0;
         int n = (dataPointers[k] / BLOCK_SIZE) * BLOCK_SIZE;
         for (; j < n; j += BLOCK_SIZE) {
-          VectorBitPacker.fastpackNoMask(dataTobePacked[k], j, out, tmpoutpos,
+          encoder.fastpackNoMask(dataTobePacked[k], j, out, tmpoutpos,
                                          k);
           tmpoutpos += INTS_PER_BLOCK * k;
         }
         int r = dataPointers[k] % BLOCK_SIZE;
         if (r != 0) {
-          tmpoutpos = VectorBitPacker.slowpack(dataTobePacked[k], j, r, out,
+          tmpoutpos = slowpack(dataTobePacked[k], j, r, out,
                                                tmpoutpos, k);
           tmpoutpos++;
         }
@@ -231,7 +259,11 @@ public class VectorFastPFOR implements IntegerCODEC, SkippableIntegerCODEC {
 
   @Override
   public int maxHeadlessCompressedLength(IntWrapper compressedPositions, int inlength) {
-    throw new UnsupportedOperationException("Calculating the max compressed length is not supported yet.");
+    inlength = inlength - inlength % BLOCK_SIZE;
+    int pageCount = (inlength + pageSize - 1) / pageSize;
+    int blockCount = inlength / BLOCK_SIZE;
+    int blockSizeInInts = OVERHEAD_OF_EACH_BLOCK_IN_INTS + BLOCK_SIZE;
+    return OVERHEAD_OF_EACH_PAGE_IN_INTS * pageCount + blockSizeInInts * blockCount + 24;
   }
 
   private void loadMetaData(int[] in, int inexcept, int bytesize) {
@@ -246,10 +278,29 @@ public class VectorFastPFOR implements IntegerCODEC, SkippableIntegerCODEC {
     }
   }
 
+  /**
+   * Rejects a stream packed for wider lanes than this machine runs natively.
+   * Decoding it would silently fall back to scalar emulation; failing loud lets
+   * the caller re-encode the cluster at a lower width instead.
+   */
+  static void checkDecodable(LaneWidth streamWidth, LaneWidth hostWidth) {
+    if (streamWidth.bits > hostWidth.bits) {
+      throw new IllegalStateException(
+          "VectorFastPFOR stream was packed for " + streamWidth.bits
+          + "-bit vector lanes, but this machine runs at most " + hostWidth.bits
+          + "-bit lanes natively. Re-encode with lanes <= " + hostWidth.bits
+          + " bits.");
+    }
+  }
+
   private void decodePage(int[] in, IntWrapper inpos, int[] out,
                           IntWrapper outpos, int thissize) {
     final int initpos = inpos.get();
-    final int wheremeta = in[inpos.get()];
+    final int header = in[inpos.get()];
+    final int wheremeta = header & WHEREMETA_MASK;
+    final LaneWidth streamWidth = LaneWidth.fromCode(header >>> WIDTH_SHIFT);
+    checkDecodable(streamWidth, LaneWidth.PREFERRED);
+    final VectorBitPackerKernels decoder = streamWidth.kernel;
     inpos.increment();
     int inexcept = initpos + wheremeta;
 
@@ -268,11 +319,11 @@ public class VectorFastPFOR implements IntegerCODEC, SkippableIntegerCODEC {
           int j = 0;
           int len = (size / BLOCK_SIZE) * BLOCK_SIZE;
           for (; j < len; j += BLOCK_SIZE) {
-            VectorBitPacker.fastunpack(in, inexcept, dataTobePacked[k], j, k);
+            decoder.fastunpack(in, inexcept, dataTobePacked[k], j, k);
             inexcept += INTS_PER_BLOCK * k;
           }
           int r = size % BLOCK_SIZE;
-          inexcept = VectorBitPacker.slowunpack(in, inexcept, dataTobePacked[k],
+          inexcept = slowunpack(in, inexcept, dataTobePacked[k],
                                                 j, r, k);
         } else {
           int j = 0;
@@ -282,12 +333,12 @@ public class VectorFastPFOR implements IntegerCODEC, SkippableIntegerCODEC {
           System.arraycopy(in, inexcept, buf, 0, in.length - inexcept);
           int l = (size / BLOCK_SIZE) * BLOCK_SIZE;
           for (; j < l; j += BLOCK_SIZE) {
-            VectorBitPacker.fastunpack(buf, inexcept - initinexcept,
+            decoder.fastunpack(buf, inexcept - initinexcept,
                                        dataTobePacked[k], j, k);
             inexcept += INTS_PER_BLOCK * k;
           }
           int r = size % BLOCK_SIZE;
-          inexcept = VectorBitPacker.slowunpack(in, inexcept, dataTobePacked[k],
+          inexcept = slowunpack(in, inexcept, dataTobePacked[k],
                                                 j, r, k);
         }
       }
@@ -300,7 +351,7 @@ public class VectorFastPFOR implements IntegerCODEC, SkippableIntegerCODEC {
          ++run, tmpoutpos += BLOCK_SIZE) {
       final int b = bem[idx];                  // byteContainer.get();
       final int cexcept = bem[idx + 1] & 0xFF; // byteContainer.get() & 0xFF;
-      VectorBitPacker.fastunpack(in, tmpinpos, out, tmpoutpos, b);
+      decoder.fastunpack(in, tmpinpos, out, tmpoutpos, b);
       tmpinpos += INTS_PER_BLOCK * b;
       if (cexcept > 0) {
         final int maxbits = bem[idx + 2]; // byteContainer.get();
@@ -362,5 +413,74 @@ public class VectorFastPFOR implements IntegerCODEC, SkippableIntegerCODEC {
    */
   protected ByteBuffer makeBuffer(int sizeInBytes) {
     return ByteBuffer.allocateDirect(sizeInBytes);
+  }
+
+  /**
+   * Packs the sub-block exception remainder, which is not a multiple of the
+   * vector block size, into the sequential scalar layout read back by
+   * {@link #slowunpack}. Zeroes its target words first, then OR-accumulates the
+   * packed bits, so a reused output buffer carries no stale bits.
+   */
+  private static int slowpack(final int[] in, int inpos, int inlen,
+                              final int[] out, int outpos, int b) {
+    if (inlen == 0)
+      return outpos;
+    if (b == 32) {
+      System.arraycopy(in, inpos, out, outpos, inlen);
+      return outpos + inlen;
+    }
+    int mask = (1 << b) - 1;
+    Arrays.fill(out, outpos, outpos + (inlen * b + 31) / 32, 0);
+    int c = 0;
+    int l = 0;
+    int r = 0;
+    int val = 0;
+    for (int i = 0; i < inlen; i++) {
+      val = in[inpos + i] & mask;
+      out[outpos] |= val << (c + r);
+      c += b;
+      l = (32 - r) % b;
+      if (c + r >= 32) {
+        if (i < inlen - 1 || l != 0)
+          outpos++;
+        r = l == 0 ? 0 : b - l;
+        if (l != 0)
+          out[outpos] = val >> (b - r);
+        c = 0;
+      }
+    }
+    return outpos;
+  }
+
+  /** Reverses {@link #slowpack}. */
+  private static int slowunpack(final int[] in, int inpos, final int[] out,
+                                int outpos, int outlen, int b) {
+    if (outlen == 0) {
+      return inpos;
+    }
+    if (b == 32) {
+      System.arraycopy(in, inpos, out, outpos, outlen);
+      return inpos + outlen;
+    }
+    int mask = (1 << b) - 1;
+    int limit = outpos + outlen;
+    int r = 0;
+    int val = 0;
+    int i = 0;
+    for (; outpos < limit; i++) {
+      if (r > 0)
+        out[outpos++] =
+            (val >>> (32 - (b - r))) | ((in[inpos + i] << (b - r)) & mask);
+      val = in[inpos + i];
+      int j = 0;
+      int l = 32 - r;
+      int ll = l % b == 0 ? l : l - b;
+      while (j < ll && outpos < limit) {
+        out[outpos++] = (val >> (j + r)) & mask;
+        j += b;
+      }
+      r = l % b == 0 ? 0 : b - (l % b);
+    }
+    return inpos + i;
   }
 }

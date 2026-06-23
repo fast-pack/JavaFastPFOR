@@ -13,6 +13,7 @@ import me.lemire.integercompression.differential.IntegratedBinaryPacking;
 import me.lemire.integercompression.differential.IntegratedVariableByte;
 import me.lemire.integercompression.differential.SkippableIntegratedComposition;
 import me.lemire.integercompression.differential.SkippableIntegratedIntegerCODEC;
+import me.lemire.integercompression.vector.VectorFastPFOR;
 import org.junit.Test;
 
 import static org.junit.Assert.assertArrayEquals;
@@ -37,6 +38,7 @@ public class SkippableBasicTest {
             new SkippableComposition(new OptPFDS16(), new VariableByte()),
             new SkippableComposition(new FastPFOR128(), new VariableByte()),
             new SkippableComposition(new FastPFOR(), new VariableByte()),
+            new SkippableComposition(new VectorFastPFOR(), new VariableByte()),
             new Simple9(),
             new Simple16() };
 

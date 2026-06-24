@@ -13,6 +13,7 @@ import me.lemire.integercompression.differential.IntegratedBinaryPacking;
 import me.lemire.integercompression.differential.IntegratedVariableByte;
 import me.lemire.integercompression.differential.SkippableIntegratedComposition;
 import me.lemire.integercompression.differential.SkippableIntegratedIntegerCODEC;
+import me.lemire.integercompression.vector.VectorBinaryPacking;
 import me.lemire.integercompression.vector.VectorFastPFOR;
 import org.junit.Test;
 
@@ -39,6 +40,7 @@ public class SkippableBasicTest {
             new SkippableComposition(new FastPFOR128(), new VariableByte()),
             new SkippableComposition(new FastPFOR(), new VariableByte()),
             new SkippableComposition(new VectorFastPFOR(), new VariableByte()),
+            new SkippableComposition(new VectorBinaryPacking(), new VariableByte()),
             new Simple9(),
             new Simple16() };
 
@@ -165,6 +167,8 @@ public class SkippableBasicTest {
         testMaxHeadlessCompressedLength(new BinaryPacking(), 16 * BinaryPacking.BLOCK_SIZE, 32);
         testMaxHeadlessCompressedLength(new VariableByte(), 128, 32);
         testMaxHeadlessCompressedLength(new SkippableComposition(new BinaryPacking(), new VariableByte()), 16 * BinaryPacking.BLOCK_SIZE + 10, 32);
+        testMaxHeadlessCompressedLength(new VectorBinaryPacking(), 4 * VectorBinaryPacking.BLOCK_SIZE, 32);
+        testMaxHeadlessCompressedLength(new SkippableComposition(new VectorBinaryPacking(), new VariableByte()), 4 * VectorBinaryPacking.BLOCK_SIZE + 10, 32);
         testMaxHeadlessCompressedLength(new JustCopy(), 128, 32);
         testMaxHeadlessCompressedLength(new Simple9(), 128, 28);
         testMaxHeadlessCompressedLength(new Simple16(), 128, 28);

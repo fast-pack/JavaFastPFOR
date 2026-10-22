@@ -173,7 +173,7 @@ public class VariableByte implements IntegerCODEC, ByteIntegerCODEC, SkippableIn
             p += 5;
         }
         outpos.set(tmpoutpos);
-        inpos.add(p);
+        inpos.set(p);
     }
 
     @Override

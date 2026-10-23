@@ -51,9 +51,26 @@ public class ByteBasicTest {
                     System.out.println("Problem with "+C);
                 }
                 assertArrayEquals(a, c);
+                assertEquals(C.toString(), x + len, bOffset.get());
+                assertEquals(C.toString(), a.length, cOffset.get());
             }
         }
     }
+    @Test
+    public void emptyInputPreservesOffsets() {
+        for (ByteIntegerCODEC codec : codecs) {
+            IntWrapper inpos = new IntWrapper(5);
+            IntWrapper outpos = new IntWrapper(2);
+            int[] output = { 10, 20, 30 };
+
+            codec.uncompress(new byte[5], inpos, 0, output, outpos);
+
+            assertEquals(codec.toString(), 5, inpos.get());
+            assertEquals(codec.toString(), 2, outpos.get());
+            assertArrayEquals(new int[] { 10, 20, 30 }, output);
+        }
+    }
+
     /**
      * 
      */

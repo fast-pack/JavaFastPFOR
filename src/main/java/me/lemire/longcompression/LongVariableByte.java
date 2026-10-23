@@ -289,7 +289,7 @@ public class LongVariableByte implements LongCODEC, ByteLongCODEC, SkippableLong
             p += 10;
         }
         outpos.set(tmpoutpos);
-        inpos.add(p);
+        inpos.set(p);
     }
 
     @Override

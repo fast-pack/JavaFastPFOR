@@ -182,6 +182,11 @@ public class FastPFOR128 implements IntegerCODEC,SkippableIntegerCODEC {
                 for (int k = 2; k <= 32; ++k) {
                         if (dataPointers[k] != 0) {
                                 out[tmpoutpos++] = dataPointers[k];// size
+                                // make sure reused codec matches a fresh one by zero-ing
+                                // the unused entries so values from earlier call don't end
+                                // up in output
+                                Arrays.fill(dataTobePacked[k], dataPointers[k],
+                                        (dataPointers[k] + 31) / 32 * 32, 0);
                                 int j = 0;
                                 for (; j < dataPointers[k]; j += 32) {
                                         BitPacking.fastpack(dataTobePacked[k],

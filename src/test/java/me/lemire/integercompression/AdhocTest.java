@@ -152,5 +152,36 @@ public class AdhocTest {
         assertSymmetry(c, 65535, 65535);
     }
 
- 
+    @Test
+    public void reusedCodecWritesSameBytesAsFreshOne() {
+        int[] fewExceptions = blockWithExceptions(5);
+        int[] manyExceptions = blockWithExceptions(40);
+        IntegerCODEC[][] freshAndReused = {
+                { new FastPFOR(), new FastPFOR() },
+                { new FastPFOR128(), new FastPFOR128() } };
+        for (IntegerCODEC[] codecs : freshAndReused) {
+            IntegerCODEC fresh = codecs[0];
+            IntegerCODEC reused = codecs[1];
+            int[] expected = compress(fresh, fewExceptions);
+            compress(reused, manyExceptions);
+            Assert.assertArrayEquals(reused.toString(), expected, compress(reused, fewExceptions));
+        }
+    }
+
+    private static int[] blockWithExceptions(int exceptions) {
+        int[] data = new int[256];
+        Arrays.fill(data, 1);
+        for (int i = 0; i < exceptions; i++) {
+            // 10-bit values: with b = 1, each is an exception 9 bits wide
+            data[i * 6] = (1 << 9) | (i * 37 & 0b111111111);
+        }
+        return data;
+    }
+
+    private static int[] compress(IntegerCODEC codec, int[] data) {
+        int[] out = new int[data.length * 2 + 1024];
+        IntWrapper outpos = new IntWrapper(0);
+        codec.compress(data, new IntWrapper(0), data.length, out, outpos);
+        return Arrays.copyOf(out, outpos.get());
+    }
 }

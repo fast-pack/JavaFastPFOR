@@ -32,7 +32,7 @@ import java.util.Arrays;
  *
  * Note that this does not use differential coding: if you are working on sorted
  * lists, you should first compute deltas, @see me.lemire.integercompression.differential.Delta#delta.
- * 
+ *
  * For multi-threaded applications, each thread should use its own FastPFOR
  * object.
  *
@@ -205,6 +205,11 @@ public class FastPFOR implements IntegerCODEC,SkippableIntegerCODEC {
                 for (int k = 2; k <= 32; ++k) {
                         if (dataPointers[k] != 0) {
                                 out[tmpoutpos++] = dataPointers[k];// size
+                                // make sure reused codec matches a fresh one by zero-ing
+                                // the unused entries so values from earlier call don't end
+                                // up in output
+                                Arrays.fill(dataTobePacked[k], dataPointers[k],
+                                        (dataPointers[k] + 31) / 32 * 32, 0);
                                 int j = 0;
                                 for (; j < dataPointers[k]; j += 32) {
                                         BitPacking.fastpack(dataTobePacked[k],
@@ -355,7 +360,7 @@ public class FastPFOR implements IntegerCODEC,SkippableIntegerCODEC {
          * In case you need a different way to allocate buffers, you can override this method
          * with a custom behavior. The default implementation allocates a new Java direct
          * {@link ByteBuffer} on each invocation.
-         * 
+         *
          * @param sizeInBytes
          * @return
          */
